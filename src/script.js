@@ -4,6 +4,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader.js'
 import * as dat from 'dat.gui'
 
+//Loaders
+
+const textureLoader = new THREE.TextureLoader();
+
+const containerTexture = textureLoader.load('/textures/containerTexture.png');
+
 // Debug
 const gui = new dat.GUI()
 
@@ -14,15 +20,16 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 // Objects
-const geometry = new THREE.SphereBufferGeometry( .5, 64, 64);
+const geometry = new THREE.BoxGeometry( .5, .5, .5);
 
 const geometry_floor = new THREE.BoxGeometry(10,0.1,10);
 
 // Materials
 
 const material = new THREE.MeshStandardMaterial()
-material.roughness = 0.3
-material.metalness = 0.5
+material.roughness = 0.1
+material.metalness = 0.4
+material.normalMap = containerTexture
 material.color = new THREE.Color(0xffffff)
 
 // Mesh
@@ -34,11 +41,36 @@ scene.add(floor)
 
 // Lights
 
-const dLight = new THREE.DirectionalLight(0xffffff, 0.5)
-dLight.position.x = 2
-dLight.position.y = 3
-dLight.position.z = 4
+const dLight = new THREE.DirectionalLight(0xffffff, 1)
+dLight.position.set(2,3,4);
 scene.add(dLight)
+
+const dLightColor = {
+    color: 0xfdfbd3
+}
+
+const dLightDebug = gui.addFolder("dLight")
+
+const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
+scene.add(dLightHelper)
+
+dLightDebug.add(dLight.position, "x").min(-5).max(5).step(0.01)
+dLightDebug.add(dLight.position, "y").min(-5).max(5).step(0.01)
+dLightDebug.add(dLight.position, "z").min(-5).max(5).step(0.01)
+dLightDebug.add(dLight, "intensity").min(0).max(10).step(0.01)
+dLightDebug.addColor(dLight, "color")
+    .onChange(() => {
+        dLight.color.set(dLightDebug.color)
+    })
+
+
+
+
+
+// const hemLight = new THREE.HemisphereLight(0xEB4678, 0x8CEBE7, 0.5 );
+// hemLight.position.set(-2,3,-4);
+// scene.add(hemLight)
+
 
 /**
  * Sizes
