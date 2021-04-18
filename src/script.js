@@ -20,7 +20,7 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 // Objects
-const geometry = new THREE.BoxGeometry( .5, .5, .5);
+const geometry = new THREE.SphereBufferGeometry( .5, 64, 64);
 
 const geometry_floor = new THREE.BoxGeometry(10,0.1,10);
 
@@ -34,16 +34,25 @@ material.color = new THREE.Color(0xffffff)
 
 // Mesh
 const sphere = new THREE.Mesh(geometry,material)
+sphere.castShadow = true
+sphere.receiveShadow = false
 scene.add(sphere)
 
 const floor = new THREE.Mesh(geometry_floor,material)
+floor.castShadow = true
+floor.receiveShadow = true
 scene.add(floor)
+
 
 // Lights
 
-const dLight = new THREE.DirectionalLight(0xffffff, 1)
+// Directional Light Main
+const dLight = new THREE.DirectionalLight(0xffffff, 1.4)
 dLight.position.set(2,3,4);
+dLight.castShadow = true;
 scene.add(dLight)
+
+dLight.shadow.camera.near = 0.3;
 
 const dLightColor = {
     color: 0xfdfbd3
@@ -58,14 +67,37 @@ dLightDebug.add(dLight.position, "x").min(-5).max(5).step(0.01)
 dLightDebug.add(dLight.position, "y").min(-5).max(5).step(0.01)
 dLightDebug.add(dLight.position, "z").min(-5).max(5).step(0.01)
 dLightDebug.add(dLight, "intensity").min(0).max(10).step(0.01)
-dLightDebug.addColor(dLight, "color")
+dLightDebug.addColor(dLightColor, "color")
     .onChange(() => {
-        dLight.color.set(dLightDebug.color)
+        dLight.color.set(dLightColor.color)
     })
 
 
+ // Point Light Additional
+const pLight = new THREE.PointLight(0x37FDFC, 1.4)
+pLight.position.set(2,3,4);
+pLight.castShadow = true;
+scene.add(pLight)
 
+pLight.shadow.camera.near = 0.3;
 
+const pLightColor = {
+    color: 0xfdfbd3
+}
+
+const pLightDebug = gui.addFolder("pLight")
+
+const pLightHelper = new THREE.DirectionalLightHelper(dLight,1)
+scene.add(pLightHelper)
+
+pLightDebug.add(pLight.position, "x").min(-5).max(5).step(0.01)
+pLightDebug.add(pLight.position, "y").min(-5).max(5).step(0.01)
+pLightDebug.add(pLight.position, "z").min(-5).max(5).step(0.01)
+pLightDebug.add(pLight, "intensity").min(0).max(10).step(0.01)
+pLightDebug.addColor(pLightColor, "color")
+    .onChange(() => {
+        pLight.color.set(pLightColor.color)
+    })
 
 // const hemLight = new THREE.HemisphereLight(0xEB4678, 0x8CEBE7, 0.5 );
 // hemLight.position.set(-2,3,-4);
@@ -118,6 +150,8 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 /**
  * Animate
