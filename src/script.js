@@ -8,7 +8,8 @@ import * as dat from 'dat.gui'
 
 const textureLoader = new THREE.TextureLoader();
 
-const containerTexture = textureLoader.load('/textures/containerTexture.png');
+const containerTexture_N = textureLoader.load('/textures/containerTexture_N.png');
+const containerTexture_D = textureLoader.load('/textures/containerTexture_D.png');
 
 // Debug
 const gui = new dat.GUI()
@@ -20,7 +21,7 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 // Objects
-const geometry = new THREE.SphereBufferGeometry( .5, 64, 64);
+const geometry = new THREE.BoxGeometry( .5, .5, .5);
 
 const geometry_floor = new THREE.BoxGeometry(10,0.1,10);
 
@@ -29,7 +30,9 @@ const geometry_floor = new THREE.BoxGeometry(10,0.1,10);
 const material = new THREE.MeshStandardMaterial()
 material.roughness = 0.1
 material.metalness = 0.4
-material.normalMap = containerTexture
+material.normalMap = containerTexture_N
+// material.displacementMap = containerTexture_D
+// material.displacementScale = 0.1
 material.color = new THREE.Color(0xffffff)
 
 // Mesh
@@ -39,7 +42,7 @@ sphere.receiveShadow = false
 scene.add(sphere)
 
 const floor = new THREE.Mesh(geometry_floor,material)
-floor.castShadow = true
+floor.castShadow = false
 floor.receiveShadow = true
 scene.add(floor)
 
@@ -60,8 +63,8 @@ const dLightColor = {
 
 const dLightDebug = gui.addFolder("dLight")
 
-const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
-scene.add(dLightHelper)
+// const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
+// scene.add(dLightHelper)
 
 dLightDebug.add(dLight.position, "x").min(-5).max(5).step(0.01)
 dLightDebug.add(dLight.position, "y").min(-5).max(5).step(0.01)
@@ -74,8 +77,8 @@ dLightDebug.addColor(dLightColor, "color")
 
 
  // Point Light Additional
-const pLight = new THREE.PointLight(0x37FDFC, 1.4)
-pLight.position.set(2,3,4);
+const pLight = new THREE.PointLight(0x37FDFC, 0.1)
+pLight.position.set(-2,4,-4);
 pLight.castShadow = true;
 scene.add(pLight)
 
@@ -87,8 +90,8 @@ const pLightColor = {
 
 const pLightDebug = gui.addFolder("pLight")
 
-const pLightHelper = new THREE.DirectionalLightHelper(dLight,1)
-scene.add(pLightHelper)
+// const pLightHelper = new THREE.PointLightHelper(pLight,1)
+// scene.add(pLightHelper)
 
 pLightDebug.add(pLight.position, "x").min(-5).max(5).step(0.01)
 pLightDebug.add(pLight.position, "y").min(-5).max(5).step(0.01)
@@ -166,6 +169,7 @@ const tick = () =>
 
     // Update objects
     sphere.rotation.y = .5 * elapsedTime
+    sphere.position.set(Math.sin(.5 * elapsedTime),0,Math.cos(.5 * elapsedTime))
     floor.position.set(0,-1,0)
 
 
