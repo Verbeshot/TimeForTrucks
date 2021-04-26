@@ -21,31 +21,82 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 // Objects
-const geometry = new THREE.BoxGeometry( .5, .5, .5);
+const geometry_box = new THREE.BoxGeometry( .5, .5, .5);
 
-const geometry_floor = new THREE.BoxGeometry(10,0.1,10);
+const geometry_skybox = new THREE.BoxGeometry(10000,10000,10000);
 
 // Materials
 
-const material = new THREE.MeshStandardMaterial()
-material.roughness = 0.1
-material.metalness = 0.4
-material.normalMap = containerTexture_N
+const material = new THREE.MeshStandardMaterial();
+material.roughness = 0.1;
+material.metalness = 0.4;
+material.normalMap = containerTexture_N;
 // material.displacementMap = containerTexture_D
 // material.displacementScale = 0.1
-material.color = new THREE.Color(0xffffff)
+material.color = new THREE.Color(0xffffff);
+material.side = THREE.DoubleSide;
 
-// Mesh
-const sphere = new THREE.Mesh(geometry,material)
-sphere.castShadow = true
-sphere.receiveShadow = false
-scene.add(sphere)
+const array_skybox = 
+[
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('textures/skyboxFt.png'), side: THREE.BackSide}),
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('textures/skyboxBk.png'), side: THREE.BackSide}),
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('textures/skyboxUp.png'), side: THREE.BackSide}),
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('textures/skyboxDn.png'), side: THREE.BackSide}),
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('textures/skyboxLf.png'), side: THREE.BackSide}),
+    new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load('textures/skyboxRt.png'), side: THREE.BackSide}),
 
-const floor = new THREE.Mesh(geometry_floor,material)
-floor.castShadow = false
-floor.receiveShadow = true
-scene.add(floor)
+];
 
+// const material_skybox = new THREE.MeshBasicMaterial(array_skybox);
+
+// Meshes
+const box = new THREE.Mesh(geometry_box,material)
+box.castShadow = true
+box.receiveShadow = false
+scene.add(box)
+
+const skybox = new THREE.Mesh(geometry_skybox,array_skybox);
+scene.add(skybox);
+
+
+// Terrain
+
+var tileSize = 100
+var terrainResolution = 25
+
+const geometry_floor = new THREE.PlaneGeometry(tileSize,tileSize,terrainResolution,terrainResolution);
+geometry_floor.dynamic = true;
+geometry_floor.__dirtyVertices = true;
+
+var i;
+
+console.log( geometry_floor.attributes.position.count);
+
+// make uneven terrain
+for (i = 0; i < geometry_floor.attributes.position.count; i++) {
+    var verticeDisplacement = Math.random()
+    geometry_floor.attributes.position.setZ(i,verticeDisplacement);
+    
+    // let yCoor = geometry_floor.vertices[i].y;
+    // let xCoor = geometry_floor.vertices[i].x;
+    // let zCoor = geometry_floor.vertices[i].z;
+    // yCoor = Math.random();
+}
+
+const material_floor = new THREE.MeshStandardMaterial();
+material_floor.roughness = 0.85;
+material_floor.metalness = 0.02;
+material_floor.color = new THREE.Color(0xF3BB80);
+material_floor.side = THREE.DoubleSide;
+// material_floor.wireframe = true;
+
+const floor = new THREE.Mesh(geometry_floor,material_floor)
+floor.castShadow = false;
+floor.receiveShadow = true;
+scene.add(floor);
+
+floor.position.set(0,-1,0);
+floor.rotation.x = Math.PI/2;
 
 // Lights
 
@@ -63,8 +114,8 @@ const dLightColor = {
 
 const dLightDebug = gui.addFolder("dLight")
 
-// const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
-// scene.add(dLightHelper)
+const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
+scene.add(dLightHelper)
 
 dLightDebug.add(dLight.position, "x").min(-5).max(5).step(0.01)
 dLightDebug.add(dLight.position, "y").min(-5).max(5).step(0.01)
@@ -134,7 +185,7 @@ window.addEventListener('resize', () =>
  * Camera
  */
 // Base camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
+const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100000)
 camera.position.x = 0
 camera.position.y = 0
 camera.position.z = 2
@@ -148,13 +199,21 @@ controls.enableDamping = true
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
-    alpha: true
+    canvas: canvas
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// const skybox = textureLoader.load(
+//     'https://threejsfundamentals.org/threejs/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg',
+//     () => {
+//         const rt = new THREE.WebGLCubeRenderTarget(skybox.image.height);
+//         rt.fromEquirectangularTexture(renderer, skybox);
+//         scene.background = rt.skybox;
+//     }
+// );
 
 /**
  * Animate
@@ -168,10 +227,8 @@ const tick = () =>
     const elapsedTime = clock.getElapsedTime()
 
     // Update objects
-    sphere.rotation.y = .5 * elapsedTime
-    sphere.position.set(Math.sin(.5 * elapsedTime),0,Math.cos(.5 * elapsedTime))
-    floor.position.set(0,-1,0)
-
+    box.rotation.y = .5 * elapsedTime
+    box.position.set(Math.sin(.5 * elapsedTime),0,Math.cos(.5 * elapsedTime))
 
     // Update Orbital Controls
     // controls.update()
