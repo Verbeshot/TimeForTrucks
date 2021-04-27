@@ -25,6 +25,13 @@ const geometry_box = new THREE.BoxGeometry( .5, .5, .5);
 
 const geometry_skybox = new THREE.BoxGeometry(10000,10000,10000);
 
+{
+    const objLoader = new OBJLoader();
+    objLoader.load('/models/Truck.obj', (root) => {
+        scene.add(root);
+    });
+}
+
 // Materials
 
 const material = new THREE.MeshStandardMaterial();
@@ -74,7 +81,7 @@ console.log( geometry_floor.attributes.position.count);
 
 // make uneven terrain
 for (i = 0; i < geometry_floor.attributes.position.count; i++) {
-    var verticeDisplacement = Math.random()
+    var verticeDisplacement = Math.random()*1.5;
     geometry_floor.attributes.position.setZ(i,verticeDisplacement);
     
     // let yCoor = geometry_floor.vertices[i].y;
@@ -88,14 +95,20 @@ material_floor.roughness = 0.85;
 material_floor.metalness = 0.02;
 material_floor.color = new THREE.Color(0xF3BB80);
 material_floor.side = THREE.DoubleSide;
-// material_floor.wireframe = true;
+material_floor.wireframe = true;
 
 const floor = new THREE.Mesh(geometry_floor,material_floor)
 floor.castShadow = false;
 floor.receiveShadow = true;
 scene.add(floor);
 
-floor.position.set(0,-1,0);
+var floors = floor.clone();
+scene.add(floors);
+
+floors.position.set(tileSize/2+5,-1,0);
+floors.rotation.x = Math.PI/2;
+
+floor.position.set(-tileSize/2-5,-1,0);
 floor.rotation.x = Math.PI/2;
 
 // Lights
