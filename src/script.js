@@ -4,12 +4,24 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader.js'
 import * as dat from 'dat.gui'
 
-//Loaders
+
+// Global Constants
+var planetRadius = 1000;
+var roadRadiusMult = 1.005;
+var terrainResolution = 250;
+var roadResolution = 375;
+var roadWidth = 4
+var planetDisplacement = -5.48;
+
+// Loaders
 
 const textureLoader = new THREE.TextureLoader();
 
-const containerTexture_N = textureLoader.load('/textures/containerTexture_N.png');
-const containerTexture_D = textureLoader.load('/textures/containerTexture_D.png');
+const container_nMap = textureLoader.load('/textures/containerTexture_N.png');
+const container_dMap = textureLoader.load('/textures/containerTexture_D.png');
+
+const road_nMap = textureLoader.load('/textures/road_nMap.jpg');
+const road_dMap = textureLoader.load('/textures/road_dMap.jpg');
 
 // Debug
 const gui = new dat.GUI()
@@ -21,27 +33,37 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 // Objects
-const geometry_box = new THREE.BoxGeometry( .5, .5, .5);
+const geometry_box = new THREE.CylinderBufferGeometry( .5, .5, .5, 32);
 
 const geometry_skybox = new THREE.BoxGeometry(10000,10000,10000);
 
-{
-    const objLoader = new OBJLoader();
-    objLoader.load('/models/Truck.obj', (root) => {
-        scene.add(root);
-    });
-}
+const geometry_road = new THREE.CylinderBufferGeometry(planetRadius*roadRadiusMult,planetRadius*roadRadiusMult,roadWidth,roadResolution);
+
+// {
+//     const objLoader = new OBJLoader();
+//     objLoader.load('/models/Truck.obj', (root) => {
+//         scene.add(root);
+//     });
+// }
 
 // Materials
 
-const material = new THREE.MeshStandardMaterial();
-material.roughness = 0.1;
-material.metalness = 0.4;
-material.normalMap = containerTexture_N;
-// material.displacementMap = containerTexture_D
+const material_container = new THREE.MeshStandardMaterial();
+material_container.roughness = 0.1;
+material_container.metalness = 0.4;
+material_container.normalMap = container_nMap;
+// material.displacementMap = container_dMap;
 // material.displacementScale = 0.1
-material.color = new THREE.Color(0xffffff);
-material.side = THREE.DoubleSide;
+material_container.color = new THREE.Color(0xffffff);
+material_container.side = THREE.DoubleSide;
+
+const material_road = new THREE.MeshStandardMaterial();
+material_road.roughness = 0.5;
+material_road.metalness = 0.01;
+material_road.normalMap = road_nMap;
+// material_road.displacementMap = road_dMap;
+// material_road.displacementScale = 0.1;
+material_road.color = new THREE.Color(0x111111);
 
 const array_skybox = 
 [
@@ -57,21 +79,37 @@ const array_skybox =
 // const material_skybox = new THREE.MeshBasicMaterial(array_skybox);
 
 // Meshes
-const box = new THREE.Mesh(geometry_box,material)
-box.castShadow = true
-box.receiveShadow = false
-scene.add(box)
+const box = new THREE.Mesh(geometry_box,material_container);
+box.castShadow = true;
+box.receiveShadow = false;
+scene.add(box);
+box.rotateX(Math.PI/2);
+
+// const marker = new THREE.Mesh(geometry_box,material_container);
+// scene.add(marker);
+// marker.position.set(0,planetRadius+planetDisplacement,0);
+
+const road = new THREE.Mesh(geometry_road, material_road);
+scene.add(road);
+road.rotateX(Math.PI/2);
+road.castShadow = true;
+road.receiveShadow = true;
+// road.position.set(0,(planetDisplacement),0);
 
 const skybox = new THREE.Mesh(geometry_skybox,array_skybox);
 scene.add(skybox);
 
+{
+    const objLoader = new OBJLoader();
+    objLoader.load('./models/Truck Prototype/Truck Prototype.obj', (root) => {
+        scene.add(root);
+    });
+}
+
 
 // Terrain
 
-var tileSize = 100
-var terrainResolution = 25
-
-const geometry_floor = new THREE.PlaneGeometry(tileSize,tileSize,terrainResolution,terrainResolution);
+const geometry_floor = new THREE.SphereGeometry(planetRadius,terrainResolution,terrainResolution);
 geometry_floor.dynamic = true;
 geometry_floor.__dirtyVertices = true;
 
@@ -81,8 +119,8 @@ console.log( geometry_floor.attributes.position.count);
 
 // make uneven terrain
 for (i = 0; i < geometry_floor.attributes.position.count; i++) {
-    var verticeDisplacement = Math.random()*1.5;
-    geometry_floor.attributes.position.setZ(i,verticeDisplacement);
+    var verticeDisplacement = Math.random()*8;
+    geometry_floor.attributes.position.setZ(i, geometry_floor.attributes.position.getZ(i)+verticeDisplacement);
     
     // let yCoor = geometry_floor.vertices[i].y;
     // let xCoor = geometry_floor.vertices[i].x;
@@ -95,26 +133,26 @@ material_floor.roughness = 0.85;
 material_floor.metalness = 0.02;
 material_floor.color = new THREE.Color(0xF3BB80);
 material_floor.side = THREE.DoubleSide;
-material_floor.wireframe = true;
+// material_floor.wireframe = true;
 
 const floor = new THREE.Mesh(geometry_floor,material_floor)
 floor.castShadow = false;
 floor.receiveShadow = true;
 scene.add(floor);
 
-var floors = floor.clone();
-scene.add(floors);
+// var floors = floor.clone();
+// scene.add(floors);
 
-floors.position.set(tileSize/2+5,-1,0);
-floors.rotation.x = Math.PI/2;
+// floors.position.set(planetRadius/2+5,-1,0);
+// floors.rotation.x = Math.PI/2;
 
-floor.position.set(-tileSize/2-5,-1,0);
+// floor.position.set(0,-planetRadius+2,0);
 floor.rotation.x = Math.PI/2;
 
 // Lights
 
 // Directional Light Main
-const dLight = new THREE.DirectionalLight(0xffffff, 1.4)
+const dLight = new THREE.DirectionalLight(0xffffff, 0)
 dLight.position.set(2,3,4);
 dLight.castShadow = true;
 scene.add(dLight)
@@ -127,8 +165,8 @@ const dLightColor = {
 
 const dLightDebug = gui.addFolder("dLight")
 
-const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
-scene.add(dLightHelper)
+// const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
+// scene.add(dLightHelper)
 
 dLightDebug.add(dLight.position, "x").min(-5).max(5).step(0.01)
 dLightDebug.add(dLight.position, "y").min(-5).max(5).step(0.01)
@@ -141,8 +179,8 @@ dLightDebug.addColor(dLightColor, "color")
 
 
  // Point Light Additional
-const pLight = new THREE.PointLight(0x37FDFC, 0.1)
-pLight.position.set(-2,4,-4);
+const pLight = new THREE.PointLight(0xfdfbd3, 1)
+pLight.position.set(0,6,0);
 pLight.castShadow = true;
 scene.add(pLight)
 
@@ -158,7 +196,7 @@ const pLightDebug = gui.addFolder("pLight")
 // scene.add(pLightHelper)
 
 pLightDebug.add(pLight.position, "x").min(-5).max(5).step(0.01)
-pLightDebug.add(pLight.position, "y").min(-5).max(5).step(0.01)
+pLightDebug.add(pLight.position, "y").min(-5).max(20).step(0.01)
 pLightDebug.add(pLight.position, "z").min(-5).max(5).step(0.01)
 pLightDebug.add(pLight, "intensity").min(0).max(10).step(0.01)
 pLightDebug.addColor(pLightColor, "color")
@@ -169,6 +207,10 @@ pLightDebug.addColor(pLightColor, "color")
 // const hemLight = new THREE.HemisphereLight(0xEB4678, 0x8CEBE7, 0.5 );
 // hemLight.position.set(-2,3,-4);
 // scene.add(hemLight)
+
+// Fog and Atmosphere
+const fogColor = new THREE.Color(0xF3BB80);
+scene.fog = new THREE.FogExp2(fogColor,0.01);
 
 
 /**
@@ -233,24 +275,43 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
  */
 
 const clock = new THREE.Clock()
+const SMGroup = new THREE.Group();
+
+// Simulated Motion
+
+SMGroup.add(floor);
+SMGroup.add(road);
+// SMGroup.add(marker);
+SMGroup.position.set(0,-planetRadius+planetDisplacement,0);
+// SMGroup.add(skybox);
+scene.add(SMGroup);
+
+// scene.add(floor);
+
+
 
 const tick = () =>
 {
 
-    const elapsedTime = clock.getElapsedTime()
+    const elapsedTime = clock.getElapsedTime();
 
     // Update objects
-    box.rotation.y = .5 * elapsedTime
-    box.position.set(Math.sin(.5 * elapsedTime),0,Math.cos(.5 * elapsedTime))
+    box.rotation.y = -2010*elapsedTime/60;
+    // box.position.set(Math.sin(.5 * elapsedTime),0,Math.cos(.5 * elapsedTime));
+
+    floor.rotation.z = 0.00027 * elapsedTime;
+
+    // Simulates truck movement by rotating entire scene
+    SMGroup.rotation.z = elapsedTime/60;
 
     // Update Orbital Controls
-    // controls.update()
+    controls.update();
 
     // Render
-    renderer.render(scene, camera)
+    renderer.render(scene, camera);
 
     // Call tick again on the next frame
-    window.requestAnimationFrame(tick)
+    window.requestAnimationFrame(tick);
 }
 
-tick()
+tick();
