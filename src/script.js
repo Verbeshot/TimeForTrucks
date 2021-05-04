@@ -16,6 +16,10 @@ var roadWidth = 4
 var planetDisplacement = -5.48;
 var orbitRadius = 10000;
 
+// HTML Elements
+
+let hud = document.getElementById('t');
+
 // Loader
 const textureLoader = new THREE.TextureLoader();
 var fontLoader = new THREE.FontLoader();
@@ -85,9 +89,12 @@ scene.add(box);
 box.rotateX(Math.PI/2);
 scene.remove(box);
 
+const truck = new THREE.Object3D();
+scene.add(truck);
+
 const objLoader = new OBJLoader();
 objLoader.load('/models/Truck.obj', (root) => {
-    scene.add(root);
+    truck.add(root);
     root.scale.set(0.01,0.01,0.01);
     root.rotateY(Math.PI);
     root.position.setY(-0.54);
@@ -95,11 +102,40 @@ objLoader.load('/models/Truck.obj', (root) => {
     root.receiveShadow = true;
 });
 
-fontLoader.load( 'helvetiker_regular.typeface.json', function ( font ) {
-        var words = new THREE.TextBufferGeometry( currentTime(), {
+
+/////////////////////////////////////////Digital Clock/////////////////////////////////////////////
+
+var string_trucktext;
+var clockscale = 1;
+const clocktext = new THREE.Object3D();
+// scene.add(clocktext);
+
+function updateTrucktext(hours,minutes,seconds) {
+    var h = hours.toString();
+    var m = minutes.toString();
+    var s = seconds.toString();
+
+    if (hours<10) {
+        h = "0"+hours.toString();
+    }
+
+    if (minutes<10) {
+        m = "0"+minutes.toString();
+    }
+
+    if (seconds<10) {
+        s = "0"+seconds.toString();
+    }
+
+    string_trucktext = h+" : "+m+" : "+s;
+
+    clockscale = ((camera.position.distanceTo(clocktext.position))/initCameraDist)**2;
+
+    fontLoader.load( '/fonts/helvetiker_regular.typeface.json', function ( font ) {
+        clocktext.children[0].geometry = new THREE.TextBufferGeometry( string_trucktext, {
             font: font,
-            size: 0.25,
-            height: 0.001,
+            size: 10,
+            height: 1,
             curveSegments: 5,
             bevelEnabled: true,
             bevelThickness: 10,
@@ -107,14 +143,38 @@ fontLoader.load( 'helvetiker_regular.typeface.json', function ( font ) {
             bevelOffset: 0,
             bevelSegments: 0
         } );
-        var wordmatte = new THREE.MeshBasicMaterial({color: 0xffffff});
-        var words = new THREE.Mesh(words, wordmatte); 
-        words.position.set(-1,1,0);
-        words.matrixAutoUpdate = true;
-        scene.add(words)
 
+        clocktext.children[0].material.opacity = 0.4;
+
+        if (clockscale<0.2) {clocktext.children[0].material.opacity = 0.2+(clockscale);}
+        if (clockscale>1) {clocktext.children[0].material.opacity = 0.4*(1/clockscale)**2;}
+
+        // if (seconds%2==0) {clocktext.position.set(0,1,0);} 
+        // else {clocktext.position.set(0,0,0)}
+
+        // clocktext.scale.set(clockscale,clockscale,clockscale);
+
+        // clocktext.rotation.y = Math.atan2( ( camera.position.x - clocktext.position.x ), ( camera.position.z - clocktext.position.z ) );
+    } );
+}
+
+fontLoader.load( '/fonts/helvetiker_regular.typeface.json', function ( font ) {
+
+        var geometry_trucktext = new THREE.TextBufferGeometry( string_trucktext, {
+            font: font,
+        } );
+
+        var material_trucktext = new THREE.MeshStandardMaterial({color: 0xffffff});
+        material_trucktext.transparent = true;
+        material_trucktext.emissive = new THREE.Color(0xffffff);
+        material_trucktext.emissiveIntensity = 3;
+        
+        var trucktext = new THREE.Mesh(geometry_trucktext, material_trucktext); 
+        trucktext.position.set(-73,1,0);
+        trucktext.rotateZ(Math.PI/128);
+        // trucktext.rotateY(Math.PI/2);
+        clocktext.add(trucktext);
 } );
-
 
 /////////////////////////////////////////Terrain/////////////////////////////////////////////
 
@@ -138,7 +198,7 @@ material_floor.side = THREE.DoubleSide;
 const floor = new THREE.Mesh(geometry_floor,material_floor)
 floor.castShadow = false;
 floor.receiveShadow = true;
-scene.add(floor);
+// scene.add(floor);
 
 floor.rotation.x = Math.PI/2;
 
@@ -176,9 +236,33 @@ SMGroup.add(road);
 // SMGroup.add(marker);
 SMGroup.position.set(0,-planetRadius+planetDisplacement,0);
 // SMGroup.add(skybox);
-scene.add(SMGroup);
+// scene.add(SMGroup);
 
 // scene.add(floor);
+
+/////////////////////////////////////////Checkpoints/////////////////////////////////////////////
+
+const geometry_checkpoint = new THREE.TorusGeometry(100,10,16,200);
+const material_checkpoint = new THREE.MeshBasicMaterial();
+material_checkpoint.side = DoubleSide;
+const checkpoint = new THREE.Mesh(geometry_checkpoint,material_checkpoint);
+checkpoint.rotateY(Math.PI/2);
+checkpoint.position.set(0,planetRadius+planetDisplacement,0);
+
+var angle_checkpoint = 0;
+
+const container_checkpoint = new THREE.Object3D();
+container_checkpoint.add(checkpoint);
+container_checkpoint.position.set(0,-planetRadius+planetDisplacement,0);
+
+container_checkpoint.rotateZ(angle_checkpoint);
+
+function updateCheckpoint(init_seconds,seconds) {
+    angle_checkpoint = 2*Math.PI*(seconds/60)/1000;
+    container_checkpoint.rotateZ(angle_checkpoint);
+}
+
+scene.add(container_checkpoint);
 
 
 /////////////////////////////////////////Sun/////////////////////////////////////////////
@@ -245,7 +329,7 @@ atmosphere.position.set(0,-planetRadius+planetDisplacement,0);
 atmosphere.material.side = DoubleSide;
 atmosphere.material.transparent = true;
 
-function createAtmosphere() {
+function createAtmosphere(hours,minutes) {
 
     var atmosDensity = 0.01;
     const fogColor = new THREE.Color(0xF3BB80);
@@ -254,18 +338,28 @@ function createAtmosphere() {
 
         if (camera.position.distanceTo(SMGroup.position) < atmosRadius1) {
             scene.add(SMGroup);
+            scene.add(clocktext);
             scene.remove(sunGroup);
-            atmosphere.material.opacity = 1;
+            atmosphere.material.opacity = Math.sin(2*Math.PI*(hours+minutes/60)/48);
+            atmosDensity = 0.01*Math.sin(2*Math.PI*(hours+minutes/60)/48);
+            scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
             // scene.remove(atmosphere);
         }
 
         if (camera.position.distanceTo(SMGroup.position) > atmosRadius1) {
             atmosDensity = (0.001*(atmosRadius-camera.position.distanceTo(SMGroup.position)))**4;
             scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
+            atmosphere.material.opacity = 1;
             // atmosphere.material.opacity = 1/(atmosDensity*1000;
             // scene.add(atmosphere);
             scene.add(sunGroup)
             scene.remove(SMGroup);
+            scene.remove(clocktext);
+
+            hud.innerHTML = "Click To Go Back";
+            hud.classList.add('back');
+
+            hud.addEventListener("click", () => {camera.position.set(0,10,104); controls.reset()});
         }
 
         if (camera.position.distanceTo(SMGroup.position) < atmosRadius) {
@@ -366,19 +460,25 @@ window.addEventListener('resize', () =>
 
 /////////////////////////////////////////Camera/////////////////////////////////////////////
 // Base camera
-const camera = new THREE.PerspectiveCamera(90, sizes.width / sizes.height, 0.1, 300000)
-camera.position.x = 0
-camera.position.y = 0
-camera.position.z = 2
-scene.add(camera)
+const camera = new THREE.PerspectiveCamera(90, sizes.width / sizes.height, 0.1, 300000);
+camera.position.x = 0;
+camera.position.y = 10;
+camera.position.z = 104;
+scene.add(camera);
+
+var initCameraDist = camera.position.distanceTo(clocktext.position);
 
 // Controls
-const controls = new OrbitControls(camera, canvas)
+const controls = new OrbitControls(camera, canvas);
+controls.minDistance = 6.5;
+controls.maxDistance = 200000;
+controls.saveState();
 // controls.enableDamping = true
 
 /////////////////////////////////////////Renderer/////////////////////////////////////////////
 const renderer = new THREE.WebGLRenderer({
-    canvas: canvas
+    canvas: canvas,
+    antialias: true
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -390,13 +490,19 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 /////////////////////////////////////////Animation (important!) /////////////////////////////////////////////
 
 const clock = new THREE.Clock()
+const init_time = new Date();
+const init_seconds = init_time.getSeconds();
 
 const tick = () => {
 
     const elapsedTime = clock.getElapsedTime();
-    const time = new Date();
 
-    var timeTotal = Math.sin(2*Math.PI*(Math.floor(time.getTime()/1000))/31557600);
+    var time = new Date();
+    var hours = time.getHours();
+    var minutes = time.getMinutes();
+    var seconds = time.getSeconds();
+
+    var timeTotal = 2*Math.PI*(Math.floor(time.getTime()/1000))/31557600;
 
     // Update objects
     box.rotation.y = -2010*elapsedTime/60;
@@ -406,14 +512,18 @@ const tick = () => {
 
     // console.log(camera.position.distanceTo(SMGroup.position));
 
-    createAtmosphere();
+    createAtmosphere(hours,minutes);
 
-    sunMovement(Math.sin(2*Math.PI*(Math.floor(time.getTime()/1000))/31557600));
+    updateTrucktext(hours,minutes,seconds);
 
-    console.log();
+    updateCheckpoint(init_seconds,elapsedTime);
+
+    sunMovement(timeTotal);
+
+    // console.log(camera.position);
 
     // Simulates truck movement by rotating entire scene
-    // SMGroup.rotation.z = elapsedTime/60;
+    SMGroup.rotation.z = elapsedTime/60;
 
     // Update Orbital Controls
     controls.update();
