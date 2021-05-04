@@ -2,6 +2,7 @@ import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader.js'
+import {MTLLoader} from 'three/examples/jsm/loaders/MTLLoader.js'
 import * as dat from 'dat.gui'
 import { BackSide, DoubleSide } from 'three'
 
@@ -17,6 +18,7 @@ var orbitRadius = 10000;
 
 // Loader
 const textureLoader = new THREE.TextureLoader();
+var fontLoader = new THREE.FontLoader();
 
 // Debug
 const gui = new dat.GUI()
@@ -81,13 +83,38 @@ box.castShadow = true;
 box.receiveShadow = false;
 scene.add(box);
 box.rotateX(Math.PI/2);
+scene.remove(box);
 
-// {
-//     const objLoader = new OBJLoader();
-//     objLoader.load('./models/Truck Prototype/Truck Prototype.obj', (root) => {
-//         scene.add(root);
-//     });
-// }
+const objLoader = new OBJLoader();
+objLoader.load('/models/Truck.obj', (root) => {
+    scene.add(root);
+    root.scale.set(0.01,0.01,0.01);
+    root.rotateY(Math.PI);
+    root.position.setY(-0.54);
+    root.castShadow = true;
+    root.receiveShadow = true;
+});
+
+fontLoader.load( 'helvetiker_regular.typeface.json', function ( font ) {
+        var words = new THREE.TextBufferGeometry( currentTime(), {
+            font: font,
+            size: 0.25,
+            height: 0.001,
+            curveSegments: 5,
+            bevelEnabled: true,
+            bevelThickness: 10,
+            bevelSize: 0,
+            bevelOffset: 0,
+            bevelSegments: 0
+        } );
+        var wordmatte = new THREE.MeshBasicMaterial({color: 0xffffff});
+        var words = new THREE.Mesh(words, wordmatte); 
+        words.position.set(-1,1,0);
+        words.matrixAutoUpdate = true;
+        scene.add(words)
+
+} );
+
 
 /////////////////////////////////////////Terrain/////////////////////////////////////////////
 
@@ -193,8 +220,8 @@ sunGroup.position.set(x_sun,y_sun,z_sun);
 // scene.add(sunGroup);
 
 function sunMovement(orbitLocation) {
-    x_sun = (orbitRadius-planetRadius)*Math.sin(orbitLocation);
-    y_sun = (orbitRadius-planetRadius)*Math.cos(orbitLocation);
+    x_sun = (orbitRadius-planetRadius)*Math.cos(orbitLocation);
+    y_sun = (orbitRadius-planetRadius)*Math.sin(orbitLocation);
     sunGroup.position.set(x_sun,y_sun,z_sun);
     // console.log(orbitLocation);
 }
@@ -203,6 +230,8 @@ function sunMovement(orbitLocation) {
 
 var atmosRadius = planetRadius*1.4;
 var atmosRadius1 = planetRadius*1.2;
+
+
 
 const geometry_atmos = new THREE.SphereBufferGeometry(atmosRadius1,terrainResolution,terrainResolution);
 const material_atmos = new THREE.MeshStandardMaterial();
@@ -214,38 +243,40 @@ const atmosphere = new THREE.Mesh(geometry_atmos,material_atmos);
 scene.add(atmosphere);
 atmosphere.position.set(0,-planetRadius+planetDisplacement,0);
 atmosphere.material.side = DoubleSide;
+atmosphere.material.transparent = true;
 
 function createAtmosphere() {
 
     var atmosDensity = 0.01;
-    
     const fogColor = new THREE.Color(0xF3BB80);
 
     scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
 
-    if (camera.position.distanceTo(SMGroup.position) < atmosRadius1) {
-        scene.add(SMGroup);
-        scene.remove(sunGroup);
-        // scene.remove(atmosphere);
-    }
+        if (camera.position.distanceTo(SMGroup.position) < atmosRadius1) {
+            scene.add(SMGroup);
+            scene.remove(sunGroup);
+            atmosphere.material.opacity = 1;
+            // scene.remove(atmosphere);
+        }
 
-    if (camera.position.distanceTo(SMGroup.position) > atmosRadius1) {
-        atmosDensity = (0.001*(atmosRadius-camera.position.distanceTo(SMGroup.position)))**4;
-        scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
-        // scene.add(atmosphere);
-        scene.add(sunGroup)
-        scene.remove(SMGroup);
-    }
+        if (camera.position.distanceTo(SMGroup.position) > atmosRadius1) {
+            atmosDensity = (0.001*(atmosRadius-camera.position.distanceTo(SMGroup.position)))**4;
+            scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
+            // atmosphere.material.opacity = 1/(atmosDensity*1000;
+            // scene.add(atmosphere);
+            scene.add(sunGroup)
+            scene.remove(SMGroup);
+        }
 
-    if (camera.position.distanceTo(SMGroup.position) < atmosRadius) {
-        scene.add(skybox);
-    }
+        if (camera.position.distanceTo(SMGroup.position) < atmosRadius) {
+            scene.add(skybox);
+        }
 
-    if (camera.position.distanceTo(SMGroup.position) > atmosRadius) {
-        atmosDensity = 0;
-        scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
-        scene.remove(skybox);
-    }
+        if (camera.position.distanceTo(SMGroup.position) > atmosRadius) {
+            atmosDensity = 0;
+            scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
+            scene.remove(skybox);
+        }
 
     // console.log(atmosDensity);
 }
@@ -382,7 +413,7 @@ const tick = () => {
     console.log();
 
     // Simulates truck movement by rotating entire scene
-    SMGroup.rotation.z = elapsedTime/60;
+    // SMGroup.rotation.z = elapsedTime/60;
 
     // Update Orbital Controls
     controls.update();
