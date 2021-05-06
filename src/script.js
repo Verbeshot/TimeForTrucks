@@ -249,20 +249,22 @@ const checkpoint = new THREE.Mesh(geometry_checkpoint,material_checkpoint);
 checkpoint.rotateY(Math.PI/2);
 checkpoint.position.set(0,planetRadius+planetDisplacement,0);
 
-var angle_checkpoint = 0;
+SMGroup.add(checkpoint);
 
-const container_checkpoint = new THREE.Object3D();
-container_checkpoint.add(checkpoint);
-container_checkpoint.position.set(0,-planetRadius+planetDisplacement,0);
+// var angle_checkpoint = 0;
 
-container_checkpoint.rotateZ(angle_checkpoint);
+// const container_checkpoint = new THREE.Object3D();
+// container_checkpoint.add(checkpoint);
+// container_checkpoint.position.set(0,-planetRadius+planetDisplacement,0);
 
-function updateCheckpoint(init_seconds,seconds) {
-    angle_checkpoint = 2*Math.PI*(seconds/60)/1000;
-    container_checkpoint.rotateZ(angle_checkpoint);
-}
+// container_checkpoint.rotateZ(angle_checkpoint);
 
-scene.add(container_checkpoint);
+// function updateCheckpoint(init_seconds,seconds) {
+//     angle_checkpoint = 2*Math.PI*(seconds/60)/1000;
+//     container_checkpoint.rotateZ(angle_checkpoint);
+// }
+
+// scene.add(container_checkpoint);
 
 
 /////////////////////////////////////////Sun/////////////////////////////////////////////
@@ -310,12 +312,50 @@ function sunMovement(orbitLocation) {
     // console.log(orbitLocation);
 }
 
+/////////////////////////////////////////Moon/////////////////////////////////////////////
+
+var moonRadius = planetRadius/8;
+var orbitRadius_moon = 4000;
+var y_moon = 0;
+var x_moon = 0;
+var z_moon = 0;
+
+const geometry_moon = new THREE.SphereBufferGeometry(10,100,100);
+const material_moon = new THREE.MeshStandardMaterial();
+material_moon.roughness = 0.9;
+material_moon.metalness = 0.02;
+material_moon.color = new THREE.Color(0xF3BB80);
+material_moon.emissive = new THREE.Color(0xF3BB80);
+material_moon.emissiveIntensity = 1;
+
+const moon = new THREE.Mesh(geometry_moon,material_moon);
+
+moon.scale.set(moonRadius/10,moonRadius/10,moonRadius/10);
+
+const moonLight = new THREE.PointLight(0xfdfbd3, 0.1);
+moonLight.castShadow = true;
+scene.add(moonLight);
+
+moonLight.shadow.camera.near = 0.3;
+
+const moonGroup = new THREE.Group();
+moonGroup.add(moon);
+moonGroup.add(moonLight);
+moonGroup.position.set(x_moon,y_moon,z_moon);
+scene.add(moonGroup);
+
+function moonMovement(orbitLocation) {
+    x_moon = (orbitRadius_moon-planetRadius)*Math.cos(orbitLocation);
+    y_moon = (orbitRadius_moon-planetRadius)*Math.sin(orbitLocation);
+    moonGroup.position.set(x_moon,y_moon,z_moon);
+    // console.log(orbitLocation);
+}
+
 /////////////////////////////////////////Atmosphere/////////////////////////////////////////////
 
 var atmosRadius = planetRadius*1.4;
 var atmosRadius1 = planetRadius*1.2;
-
-
+var atmosDensity = 0.01;
 
 const geometry_atmos = new THREE.SphereBufferGeometry(atmosRadius1,terrainResolution,terrainResolution);
 const material_atmos = new THREE.MeshStandardMaterial();
@@ -324,25 +364,27 @@ material_atmos.metalness = 0.02;
 material_atmos.color = new THREE.Color(0xF3BB80);
 
 const atmosphere = new THREE.Mesh(geometry_atmos,material_atmos);
-scene.add(atmosphere);
+// scene.add(atmosphere);
 atmosphere.position.set(0,-planetRadius+planetDisplacement,0);
 atmosphere.material.side = DoubleSide;
 atmosphere.material.transparent = true;
 
 function createAtmosphere(hours,minutes) {
 
-    var atmosDensity = 0.01;
     const fogColor = new THREE.Color(0xF3BB80);
 
     scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
 
         if (camera.position.distanceTo(SMGroup.position) < atmosRadius1) {
-            scene.add(SMGroup);
+            spinObject.add(SMGroup);
             scene.add(clocktext);
-            scene.remove(sunGroup);
-            atmosphere.material.opacity = Math.sin(2*Math.PI*(hours+minutes/60)/48);
-            atmosDensity = 0.01*Math.sin(2*Math.PI*(hours+minutes/60)/48);
+            spinObject.remove(sunGroup);
+            atmosphere.material.opacity = -1*Math.cbrt(Math.cos(2*Math.PI*(hours+minutes/60)/24));
+            atmosDensity = -0.005*Math.cbrt(Math.cos(2*Math.PI*(hours+minutes/60)/24))+0.005;
             scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
+            controls.maxDistance = 3000;
+            controls.enablePan = false;
+            fovChange();
             // scene.remove(atmosphere);
         }
 
@@ -352,9 +394,14 @@ function createAtmosphere(hours,minutes) {
             atmosphere.material.opacity = 1;
             // atmosphere.material.opacity = 1/(atmosDensity*1000;
             // scene.add(atmosphere);
-            scene.add(sunGroup)
-            scene.remove(SMGroup);
+            spinObject.add(sunGroup)
+            spinObject.remove(SMGroup);
             scene.remove(clocktext);
+
+            controls.maxDistance = 200000;
+            controls.enablePan = true;
+
+            camera.fov = 60;
 
             hud.innerHTML = "Click To Go Back";
             hud.classList.add('back');
@@ -363,47 +410,32 @@ function createAtmosphere(hours,minutes) {
         }
 
         if (camera.position.distanceTo(SMGroup.position) < atmosRadius) {
-            scene.add(skybox);
+            spinObject.add(skybox);
         }
 
         if (camera.position.distanceTo(SMGroup.position) > atmosRadius) {
             atmosDensity = 0;
             scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
-            scene.remove(skybox);
+            spinObject.remove(skybox);
         }
 
     // console.log(atmosDensity);
 }
 
 
+/////////////////////////////////////////Day/Night/////////////////////////////////////////////
+
+const spinObject = new THREE.Group();
+spinObject.add(atmosphere);
+spinObject.add(sunGroup);
+spinObject.add(SMGroup);
+// spinObject.add(truck);
+// spinObject.add(clocktext);
+spinObject.add(skybox);
+scene.add(spinObject);
+
+
 /////////////////////////////////////////Lights/////////////////////////////////////////////
-
-// Directional Light Main
-const dLight = new THREE.DirectionalLight(0xffffff, 0)
-dLight.position.set(2,3,4);
-dLight.castShadow = true;
-scene.add(dLight)
-
-dLight.shadow.camera.near = 0.3;
-
-const dLightColor = {
-    color: 0xfdfbd3
-}
-
-const dLightDebug = gui.addFolder("dLight")
-
-// const dLightHelper = new THREE.DirectionalLightHelper(dLight,1)
-// scene.add(dLightHelper)
-
-dLightDebug.add(dLight.position, "x").min(-5).max(5).step(0.01)
-dLightDebug.add(dLight.position, "y").min(-5).max(5).step(0.01)
-dLightDebug.add(dLight.position, "z").min(-5).max(5).step(0.01)
-dLightDebug.add(dLight, "intensity").min(0).max(10).step(0.01)
-dLightDebug.addColor(dLightColor, "color")
-    .onChange(() => {
-        dLight.color.set(dLightColor.color)
-    })
-
 
  // Point Light Additional
 const pLight = new THREE.PointLight(0xfdfbd3, 1)
@@ -435,6 +467,11 @@ pLightDebug.addColor(pLightColor, "color")
 // hemLight.position.set(-2,3,-4);
 // scene.add(hemLight)
 
+// Ambient Moonlight
+const mlight = new THREE.AmbientLight( 0x404040 ); // soft white light
+mlight.intensity = 0.2;
+scene.add( mlight );
+
 
 /////////////////////////////////////////Responsive Design/////////////////////////////////////////////
 const sizes = {
@@ -460,7 +497,7 @@ window.addEventListener('resize', () =>
 
 /////////////////////////////////////////Camera/////////////////////////////////////////////
 // Base camera
-const camera = new THREE.PerspectiveCamera(90, sizes.width / sizes.height, 0.1, 300000);
+const camera = new THREE.PerspectiveCamera(45, sizes.width / sizes.height, 0.1, 300000);
 camera.position.x = 0;
 camera.position.y = 10;
 camera.position.z = 104;
@@ -471,9 +508,12 @@ var initCameraDist = camera.position.distanceTo(clocktext.position);
 // Controls
 const controls = new OrbitControls(camera, canvas);
 controls.minDistance = 6.5;
-controls.maxDistance = 200000;
 controls.saveState();
 // controls.enableDamping = true
+
+function fovChange() {
+    camera.fov = 90*(camera.position.distanceTo(clocktext.position)/(atmosRadius1-planetRadius));
+}
 
 /////////////////////////////////////////Renderer/////////////////////////////////////////////
 const renderer = new THREE.WebGLRenderer({
@@ -501,6 +541,7 @@ const tick = () => {
     var hours = time.getHours();
     var minutes = time.getMinutes();
     var seconds = time.getSeconds();
+    var mseconds = time.getMilliseconds();
 
     var timeTotal = 2*Math.PI*(Math.floor(time.getTime()/1000))/31557600;
 
@@ -516,14 +557,20 @@ const tick = () => {
 
     updateTrucktext(hours,minutes,seconds);
 
-    updateCheckpoint(init_seconds,elapsedTime);
+    // updateCheckpoint(init_seconds,elapsedTime);
 
     sunMovement(timeTotal);
+
+    moonMovement(timeTotal*31557600/2358720);
+
+    // planetSpin(minutes,hours);
+
+    spinObject.rotation.z = 2*Math.PI*(hours*60+minutes)/1440+Math.PI;
 
     // console.log(camera.position);
 
     // Simulates truck movement by rotating entire scene
-    SMGroup.rotation.z = elapsedTime/60;
+    SMGroup.rotation.z = 2*Math.PI*(mseconds+seconds*1000+minutes*60000)/600000;
 
     // Update Orbital Controls
     controls.update();
@@ -536,3 +583,6 @@ const tick = () => {
 }
 
 tick();
+console.log(atmosDensity);
+console.log(atmosphere.material.opacity);
+console.log(camera.fov);
