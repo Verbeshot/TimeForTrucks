@@ -15,10 +15,14 @@ var roadResolution = 375;
 var roadWidth = 4
 var planetDisplacement = -5.48;
 var orbitRadius = 10000;
+var ghours = 0;
+var gminutes = 0;
+var gseconds = 0;
 
 // HTML Elements
 
 let hud = document.getElementById('t');
+let audio = document.getElementById("a"); 
 
 // Loader
 const textureLoader = new THREE.TextureLoader();
@@ -93,7 +97,7 @@ const truck = new THREE.Object3D();
 scene.add(truck);
 
 const objLoader = new OBJLoader();
-objLoader.load('/models/Truck_0.obj', (root) => {
+objLoader.load('/models/Lun_truck.obj', (root) => {
     truck.add(root);
     root.scale.set(0.07,0.07,0.07);
     root.rotateY(Math.PI);
@@ -108,6 +112,7 @@ objLoader.load('/models/Truck_0.obj', (root) => {
 
 var string_trucktext;
 var clockscale = 1;
+var opacity_clock = 0.6;
 const clocktext = new THREE.Object3D();
 // scene.add(clocktext);
 
@@ -145,10 +150,10 @@ function updateTrucktext(hours,minutes,seconds) {
             bevelSegments: 0
         } );
 
-        clocktext.children[0].material.opacity = 0.4;
+        clocktext.children[0].material.opacity = opacity_clock;
 
         if (clockscale<0.2) {clocktext.children[0].material.opacity = 0.2+(clockscale);}
-        if (clockscale>1) {clocktext.children[0].material.opacity = 0.4*(1/clockscale)**2;}
+        if (clockscale>1) {clocktext.children[0].material.opacity = opacity_clock*(1/clockscale)**2;}
 
         // clocktext.scale.set(clockscale,clockscale,clockscale);
 
@@ -197,6 +202,7 @@ material_floor.side = THREE.DoubleSide;
 const floor = new THREE.Mesh(geometry_floor,material_floor)
 floor.castShadow = false;
 floor.receiveShadow = true;
+// floor.material.wireframe = true;
 // scene.add(floor);
 
 floor.rotation.x = Math.PI/2;
@@ -221,19 +227,25 @@ scene.add(road);
 road.rotateX(Math.PI/2);
 road.castShadow = true;
 road.receiveShadow = true;
+// road.material.wireframe = true;
 // road.position.set(0,(planetDisplacement),0);
 
 
 /////////////////////////////////////////Checkpoints/////////////////////////////////////////////
 
-const geometry_checkpoint = new THREE.TorusGeometry(100,10,16,200);
+var angle_checkpoint = 0;
+var checkpoint_count = 10;
+var checkpoint_clones = [];
+
+const geometry_checkpoint = new THREE.TorusGeometry(80,10,16,200);
 const material_checkpoint = new THREE.MeshBasicMaterial();
 material_checkpoint.side = DoubleSide;
 const checkpoint = new THREE.Mesh(geometry_checkpoint,material_checkpoint);
 checkpoint.rotateY(Math.PI/2);
+
 checkpoint.position.set(0,planetRadius+planetDisplacement,0);
 
-// var angle_checkpoint = 0;
+// scene.add(checkpoint);
 
 // const container_checkpoint = new THREE.Object3D();
 // container_checkpoint.add(checkpoint);
@@ -256,6 +268,17 @@ const SMGroup = new THREE.Group();
 SMGroup.add(floor);
 SMGroup.add(road);
 SMGroup.add(checkpoint);
+
+for (var i = 0; i < checkpoint_count; i++) {
+    var angle = 2*Math.PI*i/10;
+    var displacement = planetRadius+planetDisplacement;
+    checkpoint_clones.push(checkpoint.clone());
+    SMGroup.add(checkpoint_clones[i]);
+    checkpoint_clones[i].rotateX(angle);
+    checkpoint_clones[i].position.set(displacement*Math.sin(angle),displacement*Math.cos(angle),0);
+    console.log(checkpoint_clones[i].rotation);
+}
+
 // SMGroup.add(marker);
 SMGroup.position.set(0,-planetRadius+planetDisplacement,0);
 
@@ -263,7 +286,7 @@ const planetGroup = new THREE.Group();
 planetGroup.add(SMGroup);
 planetGroup.add(truck);
 planetGroup.add(clocktext);
-planetGroup.add(checkpoint);
+// planetGroup.add(checkpoint);
 
 
 /////////////////////////////////////////Sun/////////////////////////////////////////////
@@ -316,18 +339,10 @@ function setOrbitArc(orbitLocation) {
     sunGroup.add(orbitC);
 }
 
-function sunMovement(orbitLocation,hours) {
+function sunMovement(orbitLocation,minutes) {
     x_sun = (orbitRadius)*Math.cos(orbitLocation+3*Math.PI/2);
     y_sun = (orbitRadius)*Math.sin(orbitLocation+3*Math.PI/2);
     sunGroup.position.set(x_sun,y_sun,z_sun);
-
-    // if (hours == 0) {
-    //     orbitArcLength = orbitLocation;
-    //     const geometry_orbitC = THREE.TorusBufferGeometry(orbitRadius,500,16,500,orbitArcLength);
-    //     const orbitC = THREE.Mesh(geometry_orbitC,material_sun);
-    //     sunGroup.add(orbitC);
-    // }
-    // console.log(orbitLocation);
 }
 
 /////////////////////////////////////////Moon/////////////////////////////////////////////
@@ -391,6 +406,11 @@ function createAtmosphere(hours,minutes) {
     //     scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
     // }
 
+    if (camera.position.distanceTo(SMGroup.position) < planetRadius) {
+        floor.material.wireframe = true;
+    }
+    else {floor.material.wireframe = false;}
+
     if (camera.position.distanceTo(SMGroup.position) < atmosRadius1) {
         scene.add(planetGroup);
         spinObject.remove(sunGroup);
@@ -398,8 +418,10 @@ function createAtmosphere(hours,minutes) {
         atmosDensity = -0.005*Math.cbrt(Math.cos(2*Math.PI*(hours+minutes/60)/24))+0.005;
         scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
         controls.maxDistance = 600;
-        controls.enablePan = false;
+        audio.play();
+        // controls.enablePan = false;
         fovChange();
+        scene.add(skybox);
         // scene.remove(atmosphere);
     }
 
@@ -407,6 +429,7 @@ function createAtmosphere(hours,minutes) {
         atmosDensity = (0.001*(atmosRadius-camera.position.distanceTo(SMGroup.position)))**4;
         scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
         atmosphere.material.opacity = 1;
+        audio.pause();
         // atmosphere.material.opacity = 1/(atmosDensity*1000;
         // scene.add(atmosphere);
         spinObject.add(sunGroup);
@@ -554,9 +577,9 @@ const tick = () => {
     const elapsedTime = clock.getElapsedTime();
 
     var time = new Date();
-    var hours = time.getHours();
-    var minutes = time.getMinutes();
-    var seconds = time.getSeconds();
+    ghours = time.getHours();
+    gminutes = time.getMinutes();
+    gseconds = time.getSeconds();
     var mseconds = time.getMilliseconds();
 
     var timeTotal = 2*Math.PI*(Math.floor(time.getTime()/1000)-(init_year-1970)*31557600)/31557600;
@@ -569,24 +592,24 @@ const tick = () => {
 
     // console.log(camera.position.distanceTo(SMGroup.position));
 
-    createAtmosphere(hours,minutes);
+    createAtmosphere(ghours,gminutes);
 
-    updateTrucktext(hours,minutes,seconds);
+    updateTrucktext(ghours,gminutes,gseconds);
 
     // updateCheckpoint(init_seconds,elapsedTime);
 
-    sunMovement(timeTotal,hours);
+    sunMovement(timeTotal,gminutes);
 
     moonMovement(timeTotal*31557600/2358720);
 
     // planetSpin(minutes,hours);
 
-    spinObject.rotation.z = -2*Math.PI*(hours*60+minutes)/1440-Math.PI/2;
+    spinObject.rotation.z = -2*Math.PI*(ghours*60+gminutes)/1440-Math.PI/2;
 
     // console.log(camera.position);
 
     // Simulates truck movement by rotating entire scene
-    SMGroup.rotation.z = 2*Math.PI*(mseconds+seconds*1000+minutes*60000)/600000;
+    SMGroup.rotation.z = 2*Math.PI*(mseconds+gseconds*1000+gminutes*60000)/600000;
 
     // Update Orbital Controls
     controls.update();
