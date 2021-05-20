@@ -419,7 +419,7 @@ function createAtmosphere(hours,minutes) {
         scene.fog = new THREE.FogExp2(fogColor,atmosDensity);
         controls.maxDistance = 600;
         audio.play();
-        // controls.enablePan = false;
+        controls.enablePan = false;
         fovChange();
         scene.add(skybox);
         // scene.remove(atmosphere);
